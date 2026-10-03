@@ -66,6 +66,9 @@ def crawl_cmd(
     follow_external: Annotated[
         bool, typer.Option("--follow-external", help="Follow out-of-domain links")
     ] = False,
+    ignore_robots: Annotated[
+        bool, typer.Option("--ignore-robots", help="Bypass robots.txt compliance")
+    ] = False,
 ) -> None:
     """Run polite asynchronous web crawler and extract clean Markdown."""
     from nexus.crawler.engine import CrawlConfig, Crawler
@@ -78,6 +81,7 @@ def crawl_cmd(
         delay=delay,
         timeout=timeout,
         follow_external=follow_external,
+        ignore_robots=ignore_robots,
     )
     crawler = Crawler(cfg)
 
@@ -109,6 +113,17 @@ def crawl_cmd(
         table.add_row(st_str, page.title or "(untitled)", page.url, str(page.text_len))
 
     console.print(table)
+
+    if crawler.report.skipped_robots > 0:
+        console.print(
+            f"[yellow]Notice:[/yellow] Skipped {crawler.report.skipped_robots} page(s) "
+            "due to robots.txt rules. Pass [bold]--ignore-robots[/bold] to bypass."
+        )
+    if crawler.report.skipped_domain > 0:
+        console.print(
+            f"[dim]Filtered out {crawler.report.skipped_domain} external link(s). "
+            "Pass [bold]--follow-external[/bold] to crawl other domains.[/dim]"
+        )
 
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -233,6 +248,9 @@ def ingest_cmd(
     output: Annotated[
         Path | None, typer.Option("--output", "-o", help="Optional backup JSONL sink")
     ] = None,
+    ignore_robots: Annotated[
+        bool, typer.Option("--ignore-robots", help="Bypass robots.txt compliance")
+    ] = False,
 ) -> None:
     """Full end-to-end ingestion: Crawl -> ETL Analytics -> DB Persistence."""
     from sqlalchemy import select
@@ -251,6 +269,7 @@ def ingest_cmd(
             max_depth=max_depth,
             concurrency=concurrency,
             delay=delay,
+            ignore_robots=ignore_robots,
         )
         crawler = Crawler(cfg)
         pages = await crawler.run()

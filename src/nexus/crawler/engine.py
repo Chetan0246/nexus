@@ -46,6 +46,7 @@ class CrawlConfig:
     delay: float = 0.5
     timeout: float = 15.0
     follow_external: bool = False
+    ignore_robots: bool = False
 
 
 @dataclass(slots=True)
@@ -149,22 +150,24 @@ class Crawler:
         if self.report.fetched + self.report.failed >= self.config.max_pages:
             return
 
-        assert self._robots is not None
-        rules = await self._robots.for_url(url)
-        path = urllib.parse.urlsplit(url).path or "/"
-        if rules.fetched_ok and not rules.is_allowed(path):
-            self.report.skipped_robots += 1
-            return
-        if rules.crawl_delay:
-            self.throttle.set_delay(
-                urllib.parse.urlsplit(url).netloc, rules.crawl_delay
-            )
+        if not self.config.ignore_robots:
+            assert self._robots is not None
+            rules = await self._robots.for_url(url)
+            path = urllib.parse.urlsplit(url).path or "/"
+            if rules.fetched_ok and not rules.is_allowed(path):
+                self.report.skipped_robots += 1
+                return
+            if rules.crawl_delay:
+                self.throttle.set_delay(
+                    urllib.parse.urlsplit(url).netloc, rules.crawl_delay
+                )
 
         await self.throttle.wait(url)
         assert self._session is not None
 
         try:
             body: bytes | None = None
+            final_url = url
             for attempt in range(2):
                 async with self._session.get(url, allow_redirects=True) as resp:
                     if resp.status in (429, 503) and attempt == 0:
@@ -176,8 +179,8 @@ class Crawler:
                     if resp.status != 200 or "text/html" not in ctype:
                         self.report.failed += 1
                         page = CrawledPage(
-                            url=url,
-                            host=urllib.parse.urlsplit(url).netloc,
+                            url=str(resp.url),
+                            host=urllib.parse.urlsplit(str(resp.url)).netloc,
                             status=resp.status,
                             title=None,
                             text_len=0,
@@ -186,16 +189,18 @@ class Crawler:
                         )
                         self._pages.append(page)
                         return
-                    body = await resp.content.read(MAX_PAGE_BYTES)
+                    raw_body = await resp.read()
+                    body = raw_body[:MAX_PAGE_BYTES] if len(raw_body) > MAX_PAGE_BYTES else raw_body
+                    final_url = str(resp.url)
                     break
 
             if body is None:
                 return
 
-            title, text_len, links, markdown = self._extract(body, url)
+            title, text_len, links, markdown = self._extract(body, final_url)
             page = CrawledPage(
-                url=url,
-                host=urllib.parse.urlsplit(url).netloc,
+                url=final_url,
+                host=urllib.parse.urlsplit(final_url).netloc,
                 status=200,
                 title=title,
                 text_len=text_len,

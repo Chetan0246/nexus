@@ -46,8 +46,11 @@ def test_crawler_url_normalization() -> None:
 async def test_robots_cache() -> None:
     fake_robots = (
         "User-agent: *\n"
+        "Disallow: /\n"
+        "Allow: /$\n"
+        "Allow: /home$\n"
+        "Allow: /public/\n"
         "Disallow: /admin/\n"
-        "Disallow: /private\n"
         "Crawl-delay: 2\n"
     )
 
@@ -61,7 +64,10 @@ async def test_robots_cache() -> None:
     rc = RobotsCache(session=mock_session, user_agent="NexusEngine/1.0")
     rules = await rc.for_url("https://example.com")
 
+    assert rules.is_allowed("/") is True
+    assert rules.is_allowed("/home") is True
     assert rules.is_allowed("/public/page") is True
+    assert rules.is_allowed("/secret") is False
     assert rules.is_allowed("/admin/secrets") is False
     assert rules.crawl_delay == 2.0
 
@@ -86,6 +92,8 @@ async def test_crawler_html_to_markdown() -> None:
     mock_resp = AsyncMock()
     mock_resp.status = 200
     mock_resp.headers = {"Content-Type": "text/html; charset=utf-8"}
+    mock_resp.read = AsyncMock(return_value=html.encode("utf-8"))
+    mock_resp.url = "https://nexus-test.io"
     mock_content = AsyncMock()
     mock_content.read = AsyncMock(return_value=html.encode("utf-8"))
     mock_resp.content = mock_content

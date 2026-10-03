@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import urllib.parse
 from dataclasses import dataclass, field
 
@@ -22,6 +23,22 @@ class HostRules:
     crawl_delay: float | None = None
     fetched_ok: bool = False
 
+    @staticmethod
+    def _matches(rule: str, path: str) -> bool:
+        if not rule:
+            return False
+        has_end = rule.endswith("$")
+        clean = rule[:-1] if has_end else rule
+        if not has_end and "*" not in clean:
+            return path.startswith(clean)
+        pattern = "^" + re.escape(clean).replace(r"\*", ".*")
+        if has_end:
+            pattern += "$"
+        try:
+            return bool(re.search(pattern, path))
+        except re.error:
+            return path.startswith(clean)
+
     def is_allowed(self, path: str) -> bool:
         if not self.fetched_ok or not self.groups:
             return True
@@ -31,11 +48,11 @@ class HostRules:
 
         for group in self.groups:
             for rule in group.allows:
-                if path.startswith(rule) and len(rule) > best_len:
+                if self._matches(rule, path) and len(rule) > best_len:
                     best_len = len(rule)
                     allowed = True
             for rule in group.disallows:
-                if path.startswith(rule) and len(rule) > best_len:
+                if self._matches(rule, path) and len(rule) > best_len:
                     best_len = len(rule)
                     allowed = False
 
