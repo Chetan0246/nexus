@@ -197,6 +197,8 @@ class Crawler:
             if body is None:
                 return
 
+            final_url = str(resp.url)
+            self._seen.add(self.normalize(final_url))
             title, text_len, links, markdown = self._extract(body, final_url)
             page = CrawledPage(
                 url=final_url,
@@ -231,7 +233,7 @@ class Crawler:
                         break
                     queue.put_nowait((norm, depth + 1))
 
-        except aiohttp.ClientError as exc:
+        except Exception as exc:
             self.report.failed += 1
             self.report.errors.append(f"{url}: {exc}")
             page = CrawledPage(
@@ -248,8 +250,12 @@ class Crawler:
 
     @staticmethod
     def _extract(body: bytes, base_url: str) -> tuple[str | None, int, list[str], str]:
-        soup = BeautifulSoup(body, "lxml")
-        title = soup.title.string.strip() if soup.title and soup.title.string else None
+        try:
+            soup = BeautifulSoup(body, "lxml")
+        except Exception:
+            soup = BeautifulSoup(body, "html.parser")
+
+        title = soup.title.get_text().strip() if soup.title else None
 
         links: list[str] = []
         for anchor in soup.find_all("a", href=True):

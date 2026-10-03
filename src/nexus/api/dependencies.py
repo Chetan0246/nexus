@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nexus.db import get_session
 from nexus.models import User
-from nexus.security import decode_token
+from nexus.security import decode_token, is_token_revoked
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -25,6 +25,9 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if is_token_revoked(token):
+        raise unauthorized
+
     try:
         payload = decode_token(token)
         user_id = int(payload["sub"])

@@ -94,8 +94,12 @@ class Pipeline:
                 for line in f:
                     s = line.strip()
                     if s:
-                        yield WorkItem(id=idx, payload=json.loads(s))
-                        idx += 1
+                        try:
+                            payload = json.loads(s)
+                            yield WorkItem(id=idx, payload=payload)
+                            idx += 1
+                        except json.JSONDecodeError:
+                            continue
         elif suffix == ".json":
             text = self.source.read_text(encoding="utf-8")
             parsed = json.loads(text)
@@ -127,6 +131,7 @@ class Pipeline:
         return WorkResult(item_id=item.id, ok=True, value=row)
 
     def _load(self) -> None:
+        self.sink.parent.mkdir(parents=True, exist_ok=True)
         mode = "a" if (self.resume and self.sink.exists()) else "w"
         self.results.sort(key=lambda r: r.item_id)
         ok = [r for r in self.results if r.ok and r.value is not None]

@@ -111,3 +111,43 @@ async def test_documents_crud_and_search(
     # 5. Verify 404 after deletion
     not_found = await client.get(f"/docs/{doc_id}")
     assert not_found.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_revoked_token_rejected(
+    client: AsyncClient, test_user: User, auth_headers: dict[str, str]
+) -> None:
+    from nexus.security import revoke_token
+
+    # 1. Active token works
+    resp = await client.get("/auth/me", headers=auth_headers)
+    assert resp.status_code == 200
+
+    # 2. Extract raw token and revoke it
+    token = auth_headers["Authorization"].split()[1]
+    revoke_token(token)
+
+    # 3. Revoked token is rejected
+    revoked_resp = await client.get("/auth/me", headers=auth_headers)
+    assert revoked_resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_websocket_hub() -> None:
+    from nexus.api.ws import ConnectionHub
+
+    hub = ConnectionHub()
+    sub1 = await hub.subscribe("ops")
+    sub2 = await hub.subscribe("ops")
+
+    count = await hub.publish("ops", "system-alert-1")
+    assert count == 2
+
+    msg1 = await sub1.queue.get()
+    msg2 = await sub2.queue.get()
+    assert msg1 == "system-alert-1"
+    assert msg2 == "system-alert-1"
+
+    await hub.unsubscribe("ops", sub1)
+    await hub.unsubscribe("ops", sub2)
+    assert "ops" not in hub.room_count()

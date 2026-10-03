@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 @dataclass(eq=False)
 class Subscriber:
-    queue: asyncio.Queue[str] = field(default_factory=asyncio.Queue)
+    queue: asyncio.Queue[str] = field(default_factory=lambda: asyncio.Queue(maxsize=500))
 
 
 class ConnectionHub:
@@ -36,7 +36,15 @@ class ConnectionHub:
         async with self._lock:
             subs = list(self._rooms.get(room, ()))
         for sub in subs:
-            sub.queue.put_nowait(message)
+            if sub.queue.full():
+                try:
+                    sub.queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+            try:
+                sub.queue.put_nowait(message)
+            except asyncio.QueueFull:
+                pass
         return len(subs)
 
     def room_count(self) -> dict[str, int]:

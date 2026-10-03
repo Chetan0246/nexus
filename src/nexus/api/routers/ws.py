@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 
-import jwt
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
@@ -14,14 +13,6 @@ from nexus.schemas import WSInMessage, WSOutMessage
 from nexus.security import decode_token
 
 router = APIRouter(tags=["websocket"])
-
-
-async def _resolve_ws_user(token: str) -> str:
-    try:
-        payload = decode_token(token)
-        return str(payload.get("sub", "anon"))
-    except (jwt.PyJWTError, KeyError):
-        return "anon"
 
 
 @router.websocket("/ws/{room}")

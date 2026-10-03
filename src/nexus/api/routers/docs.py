@@ -60,6 +60,7 @@ async def list_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     host: str | None = Query(None),
+    q: str | None = Query(None),
 ) -> DocumentList:
     stmt = select(Document)
     count_stmt = select(func.count()).select_from(Document)
@@ -67,6 +68,16 @@ async def list_documents(
     if host:
         stmt = stmt.where(Document.host == host)
         count_stmt = count_stmt.where(Document.host == host)
+
+    if q:
+        term = f"%{q}%"
+        filter_cond = or_(
+            Document.title.ilike(term),
+            Document.content_markdown.ilike(term),
+            Document.url.ilike(term),
+        )
+        stmt = stmt.where(filter_cond)
+        count_stmt = count_stmt.where(filter_cond)
 
     total = (await session.scalar(count_stmt)) or 0
     items = (
@@ -87,8 +98,8 @@ async def list_documents(
 
 @router.get("/search", response_model=list[DocumentRead])
 async def search_documents(
-    q: str = Query(..., min_length=1),
-    session: Annotated[AsyncSession, Depends(get_session)] = None,  # type: ignore[assignment]
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: Annotated[str, Query(min_length=1)],
 ) -> list[Document]:
     term = f"%{q}%"
     stmt = (

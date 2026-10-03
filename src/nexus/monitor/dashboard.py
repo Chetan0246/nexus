@@ -77,10 +77,14 @@ class DashboardApp(App[None]):
         self.tick_interval = tick_interval
         self.simulated = simulated or not PSUTIL_AVAILABLE
 
-        if self.simulated:
-            self.source = SimulatedSource(seed=42)
+        if not self.simulated:
+            try:
+                self.source = SystemSource()
+            except Exception:
+                self.source = SimulatedSource(seed=42)
+                self.simulated = True
         else:
-            self.source = SystemSource()
+            self.source = SimulatedSource(seed=42)
 
         self.metrics = default_metrics()
         self.log_feed = LogFeed(buffer_size=400, seed=7)
