@@ -2,7 +2,6 @@
 
 **Autonomous Web Ingestion, Streaming ETL, REST/WebSocket API & Realtime Operations Monitor**
 
-[![CI](https://github.com/Chetan0246/nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/Chetan0246/nexus/actions/workflows/ci.yml)
 [![Python 3.12 | 3.13](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
