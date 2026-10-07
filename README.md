@@ -8,6 +8,15 @@
 
 Nexus unites web crawling, streaming ETL transformations, an asynchronous REST/WebSocket service, and a terminal operations dashboard into a unified, high-performance data intelligence platform.
 
+## How to run
+
+```bash
+pip install -e ".[dev]"
+nexus --help
+```
+
+See [Quick Start](#-quick-start) for running the API, crawler, ETL pipeline, or terminal monitor.
+
 ---
 
 ## 🏛 Architecture
